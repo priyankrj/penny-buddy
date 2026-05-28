@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Penny Buddy — UX Case Study</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --primary: #4F46E5;
+  --primary-light: #818CF8;
+  --primary-lighter: #C7D2FE;
+  --primary-bg: #EEF2FF;
+  --text: #0F172A;
+  --text-secondary: #64748B;
+  --bg: #F8FAFC;
+  --surface: #FFFFFF;
+  --border: #E2E8F0;
+  --spending: #F59E0B;
+  --savings: #10B981;
+  --font: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 16px; scroll-behavior: smooth; }
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Layout */
+.hero {
+  background: linear-gradient(135deg, var(--primary) 0%, #3730A3 100%);
+  color: #fff;
+  padding: 80px 24px 60px;
+  text-align: center;
+}
+.hero .logo { font-size: 1rem; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; opacity: 0.8; margin-bottom: 16px; }
+.hero h1 { font-size: 2.5rem; font-weight: 800; line-height: 1.2; margin-bottom: 16px; letter-spacing: -1px; }
+.hero p { font-size: 1.125rem; opacity: 0.85; max-width: 540px; margin: 0 auto; }
+@media (max-width: 640px) { .hero h1 { font-size: 1.75rem; } .hero p { font-size: 1rem; } }
+
+.content { max-width: 720px; margin: 0 auto; padding: 48px 24px 80px; }
+
+h2 {
+  font-size: 1.5rem;
+  font-weight: 800;
+  margin-top: 56px;
+  margin-bottom: 16px;
+  color: var(--primary);
+  letter-spacing: -0.5px;
+}
+h3 {
+  font-size: 1.125rem;
+  font-weight: 700;
+  margin-top: 32px;
+  margin-bottom: 10px;
+}
+p { margin-bottom: 16px; color: var(--text); }
+p.subtle { color: var(--text-secondary); }
+
+ul, ol { margin-bottom: 16px; padding-left: 24px; }
+li { margin-bottom: 8px; }
+li strong { color: var(--primary); }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px;
+  margin: 24px 0;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+.card h4 { font-size: 0.875rem; font-weight: 700; color: var(--primary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px; }
+
+.persona-card {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+.persona-avatar {
+  width: 64px; height: 64px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary), var(--primary-light));
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 1.5rem; font-weight: 800; flex-shrink: 0;
+}
+@media (max-width: 480px) { .persona-card { flex-direction: column; } }
+
+.color-palette { display: flex; gap: 12px; flex-wrap: wrap; margin: 16px 0; }
+.color-swatch {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+}
+.swatch {
+  width: 56px; height: 56px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+.swatch-label { font-size: 0.6875rem; font-weight: 600; color: var(--text-secondary); }
+.swatch-hex { font-size: 0.625rem; color: var(--text-secondary); font-family: monospace; }
+
+.type-scale { margin: 16px 0; }
+.type-row { display: flex; align-items: baseline; gap: 16px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.type-label { font-size: 0.75rem; color: var(--text-secondary); width: 80px; flex-shrink: 0; }
+
+.flow-diagram {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 16px 0;
+}
+.flow-step {
+  background: var(--primary-bg);
+  color: var(--primary);
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.flow-arrow { color: var(--primary-lighter); font-size: 1.25rem; }
+
+.sitemap {
+  margin: 20px 0;
+}
+.sitemap-root {
+  background: var(--primary);
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 0.9375rem;
+  display: inline-block;
+  margin-bottom: 16px;
+}
+.sitemap-branches { display: flex; flex-wrap: wrap; gap: 12px; padding-left: 20px; border-left: 2px solid var(--primary-lighter); }
+.sitemap-branch {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 12px 16px;
+  border-radius: 10px;
+  min-width: 120px;
+}
+.sitemap-branch .branch-title { font-weight: 700; font-size: 0.875rem; margin-bottom: 6px; }
+.sitemap-branch .branch-items { font-size: 0.75rem; color: var(--text-secondary); line-height: 1.8; }
+
+.highlight-box {
+  background: var(--primary-bg);
+  border-left: 4px solid var(--primary);
+  padding: 16px 20px;
+  border-radius: 0 12px 12px 0;
+  margin: 20px 0;
+  font-size: 0.9375rem;
+  font-weight: 500;
+}
+
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 16px 0; }
+@media (max-width: 540px) { .grid-2 { grid-template-columns: 1fr; } }
+.grid-2 .card { margin: 0; }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 16px 0;
+  font-size: 0.875rem;
+}
+th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--border); }
+th { font-weight: 700; color: var(--primary); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; }
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #fff;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.875rem;
+  opacity: 0.8;
+  margin-bottom: 24px;
+}
+.back-link:hover { opacity: 1; }
+
+.toc {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 40px;
+}
+.toc h3 { margin-top: 0; font-size: 0.875rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary); margin-bottom: 12px; }
+.toc ol { margin-bottom: 0; }
+.toc li { margin-bottom: 6px; }
+.toc a { color: var(--primary); text-decoration: none; font-weight: 500; }
+.toc a:hover { text-decoration: underline; }
+
+footer {
+  text-align: center;
+  padding: 32px;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  border-top: 1px solid var(--border);
+}
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <a href="index.html" class="back-link">← Back to Prototype</a>
+  <div class="logo">Case Study</div>
+  <h1>Penny Buddy — Personal Finance for Young Professionals</h1>
+  <p>A design exploration into making financial awareness feel approachable, clear, and emotionally intelligent for first-job professionals.</p>
+</div>
+
+<div class="content">
+
+<div class="toc">
+  <h3>Table of Contents</h3>
+  <ol>
+    <li><a href="#problem">Problem Framing</a></li>
+    <li><a href="#persona">User Persona</a></li>
+    <li><a href="#ia">Information Architecture</a></li>
+    <li><a href="#screens">Core Screens & Rationale</a></li>
+    <li><a href="#feature">Unique Feature: Money Pulse</a></li>
+    <li><a href="#flows">User Flows & Interactions</a></li>
+    <li><a href="#visual">Visual Design System</a></li>
+    <li><a href="#accessibility">Accessibility Considerations</a></li>
+    <li><a href="#decisions">Key Design Decisions</a></li>
+    <li><a href="#future">Future Considerations</a></li>
+  </ol>
+</div>
+
+<!-- 1. PROBLEM FRAMING -->
+<h2 id="problem">1. Problem Framing</h2>
+
+<p>Most personal finance apps are built for people who already understand money. They assume users know what a "burn rate" is, how to read a budget waterfall chart, or why they should care about expense ratios. For a 23-year-old receiving their first real paycheck, this creates an immediate barrier.</p>
+
+<div class="highlight-box">
+  <strong>The core problem:</strong> Young professionals need financial awareness, but existing tools feel too technical, too dense, or too transactional — leading to avoidance rather than engagement.
+</div>
+
+<p>Penny Buddy is designed around three principles:</p>
+<ul>
+  <li><strong>Simplicity over completeness</strong> — Show what matters, hide what doesn't. A clear overview beats a feature-packed dashboard.</li>
+  <li><strong>Emotional awareness</strong> — Money is emotional. Acknowledge that reality instead of reducing everything to numbers.</li>
+  <li><strong>Progressive disclosure</strong> — Start simple. Let complexity emerge as the user grows in confidence.</li>
+</ul>
+
+<!-- 2. PERSONA -->
+<h2 id="persona">2. User Persona</h2>
+
+<div class="card">
+  <div class="persona-card">
+    <div class="persona-avatar">AA</div>
+    <div>
+      <h3 style="margin-top:0">Aarav Mehta, 24</h3>
+      <p class="subtle" style="margin-bottom:8px">Junior Software Developer · First full-time job · ₹5.4 LPA</p>
+      <p>Aarav graduated 18 months ago and has been earning a steady income for the first time. He has an education loan, splits rent with a flatmate in Bangalore, and wants to start saving — but feels overwhelmed by existing finance tools.</p>
+    </div>
+  </div>
+</div>
+
+<div class="grid-2">
+  <div class="card">
+    <h4>Pain Points</h4>
+    <ul style="margin-bottom:0">
+      <li>Doesn't know where money goes each month</li>
+      <li>Finance apps feel judgmental and complicated</li>
+      <li>Tried budgeting twice, abandoned it both times</li>
+      <li>Gets anxious checking bank balance</li>
+      <li>No sense of financial progress</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h4>Needs</h4>
+    <ul style="margin-bottom:0">
+      <li>A clear, non-overwhelming spending overview</li>
+      <li>Gentle accountability without shame</li>
+      <li>Simple goal tracking for motivation</li>
+      <li>Actionable insights, not data dumps</li>
+      <li>An experience that feels modern and friendly</li>
+    </ul>
+  </div>
+</div>
+
+<!-- 3. INFORMATION ARCHITECTURE -->
+<h2 id="ia">3. Information Architecture</h2>
+
+<p>The navigation structure is deliberately flat — five primary destinations accessible from a persistent bottom tab bar. This eliminates deep nesting and ensures users can always orient themselves.</p>
+
+<div class="sitemap">
+  <div class="sitemap-root">Penny Buddy App</div>
+  <div class="sitemap-branches">
+    <div class="sitemap-branch">
+      <div class="branch-title">🏠 Home</div>
+      <div class="branch-items">Balance overview<br>Quick actions<br>Goals preview<br>Recent transactions<br>Pulse widget</div>
+    </div>
+    <div class="sitemap-branch">
+      <div class="branch-title">💰 Activity</div>
+      <div class="branch-items">Month selector<br>Income/expense summary<br>Category filters<br>Transaction list<br>Add expense (sheet)</div>
+    </div>
+    <div class="sitemap-branch">
+      <div class="branch-title">🎯 Goals</div>
+      <div class="branch-items">Active goals list<br>Progress visualization<br>Add new goal (sheet)<br>Transfer to goal (sheet)</div>
+    </div>
+    <div class="sitemap-branch">
+      <div class="branch-title">📊 Insights</div>
+      <div class="branch-items">Spending breakdown<br>Trend chart<br>Smart insights<br>Money Pulse check-in<br>Wellness score</div>
+    </div>
+    <div class="sitemap-branch">
+      <div class="branch-title">👤 Profile</div>
+      <div class="branch-items">User info<br>Theme toggle<br>Preferences<br>Export / Reset</div>
+    </div>
+  </div>
+</div>
+
+<h3>Why This Structure?</h3>
+<ul>
+  <li><strong>Home is the hub</strong> — Users land on the most useful information first: balance, recent activity, and goal progress. Everything else is one tap away.</li>
+  <li><strong>Activity (not "Transactions")</strong> — The label feels less financial and more human. It's what happened, not a ledger.</li>
+  <li><strong>Goals as a top-level item</strong> — Saving needs to feel as important as spending. Burying goals in a sub-menu signals they're secondary.</li>
+  <li><strong>Insights combines analytics and check-ins</strong> — This keeps reflection and data together, reinforcing that understanding your money is both emotional and analytical.</li>
+</ul>
+
+<!-- 4. CORE SCREENS -->
+<h2 id="screens">4. Core Screens & Rationale</h2>
+
+<h3>Onboarding (3 Steps)</h3>
+<p>The onboarding collects only what's needed in four quick steps: name, currency preference, income/savings target, and spending categories. No account linking, no social sign-up, no lengthy questionnaire.</p>
+
+<div class="highlight-box">
+  <strong>Design decision:</strong> Four steps, each with one clear purpose. Progress dots provide spatial orientation. The tone is conversational — "What should we call you?" not "Enter your legal name."
+</div>
+
+<h3>Dashboard / Home</h3>
+<p>The dashboard follows a priority hierarchy:</p>
+<ol>
+  <li><strong>Balance card (hero)</strong> — The most important number, given the most visual prominence with a gradient background. Income, spending, and savings appear below as supporting context.</li>
+  <li><strong>Spending ratio bar</strong> — A single progress bar that answers "Am I spending too much?" with color-coded feedback (green → amber → red). This reduces a complex ratio to a glanceable visual.</li>
+  <li><strong>Quick actions</strong> — The three most common tasks (add expense, save to goal, view insights) are always within reach.</li>
+  <li><strong>Goals preview</strong> — Horizontally scrollable cards create a sense of portfolio and progress.</li>
+  <li><strong>Recent transactions</strong> — Last 5 items, not 50. Enough to recognize recent activity without scrolling through noise.</li>
+  <li><strong>Money Pulse widget</strong> — A persistent, gentle nudge for the weekly check-in. It pulses to draw attention but isn't modal or intrusive.</li>
+</ol>
+
+<h3>Transactions</h3>
+<p>Month-based browsing with category filtering. Transactions are grouped by date for temporal context. The floating action button (FAB) provides always-accessible expense entry.</p>
+
+<h3>Goals</h3>
+<p>Each goal card combines an SVG progress ring (for at-a-glance status) with a full-width progress bar (for precise reading). The "Add New Goal" card uses a dashed border pattern to invite action without competing with active goals.</p>
+
+<h3>Insights</h3>
+<p>Two tabs: <strong>Overview</strong> for data, <strong>Money Pulse</strong> for reflection. The donut chart shows category breakdown, while smart insight cards surface specific, actionable observations ("You spent 23% more on Food" vs. a generic "Watch your spending").</p>
+
+<!-- 5. UNIQUE FEATURE -->
+<h2 id="feature">5. Unique Feature: Weekly Money Pulse</h2>
+
+<div class="card">
+  <h4>Why This Feature Exists</h4>
+  <p style="margin-bottom:0">Traditional finance apps track what happened but never ask how you <em>feel</em> about it. Research in behavioral economics shows that financial decisions are driven more by emotion than logic. Money Pulse bridges this gap by adding an emotional layer to financial tracking.</p>
+</div>
+
+<h3>How It Works</h3>
+<p>Once a week, users complete a 30-second check-in through four cards:</p>
+
+<div class="flow-diagram">
+  <span class="flow-step">😊 Mood</span>
+  <span class="flow-arrow">→</span>
+  <span class="flow-step">✨ Highlight</span>
+  <span class="flow-arrow">→</span>
+  <span class="flow-step">⚡ Challenge</span>
+  <span class="flow-arrow">→</span>
+  <span class="flow-step">🎯 Next Goal</span>
+  <span class="flow-arrow">→</span>
+  <span class="flow-step">📊 Score</span>
+</div>
+
+<h3>Design Decisions</h3>
+<ul>
+  <li><strong>Card-based, not form-based</strong> — Each question gets its own screen to reduce cognitive load. It feels like a story, not a survey.</li>
+  <li><strong>Chips instead of text input</strong> — Pre-set options lower the barrier to completion. Users tap, not type.</li>
+  <li><strong>Auto-advance on selection</strong> — Selecting a mood or chip automatically moves to the next step, creating flow.</li>
+  <li><strong>Weekly cadence</strong> — Daily is too frequent (fatigue). Monthly is too infrequent (loses momentum). Weekly balances consistency with sustainability.</li>
+  <li><strong>Wellness score</strong> — The mood maps to a 0-100 score, creating a trackable metric over time. The historical bar chart shows 4-week trends.</li>
+  <li><strong>Non-judgmental language</strong> — "No wrong answers" and "Awareness is the first step" normalize financial stress rather than penalizing it.</li>
+</ul>
+
+<div class="highlight-box">
+  <strong>Integration:</strong> The Pulse widget appears on the dashboard with a pulsing animation when incomplete. Once done, it shows a green checkmark. This creates gentle accountability without pop-ups or notifications.
+</div>
+
+<!-- 6. USER FLOWS -->
+<h2 id="flows">6. User Flows & Interactions</h2>
+
+<h3>Flow 1: Adding an Expense</h3>
+<div class="flow-diagram">
+  <span class="flow-step">Tap "+" FAB or Quick Action</span>
+  <span class="flow-arrow">→</span>
+  <span class="flow-step">Bottom sheet slides up</span>
+  <span class="flow-arrow">→</span>
+  <span class="flow-step">Enter amount</span>
+  <span class="flow-arrow">→</span>
+  <span class="flow-step">Select category</span>
+  <span class="flow-arrow">→</span>
+  <span class="flow-step">Add description</span>
+  <span class="flow-arrow">→</span>
+  <span class="flow-step">Tap "Add Expense"</span>
+</div>
+<p><strong>Why a bottom sheet?</strong> It maintains context (the user can still see the screen behind it), feels native to mobile, and is thumb-reachable. Modal dialogs feel disruptive; bottom sheets feel like a natural extension of the current view.</p>
+
+<h3>Flow 2: Completing Money Pulse</h3>
+<div class="flow-diagram">
+  <span class="flow-step">Tap Pulse widget</span>
+  <span class="flow-arrow">→</span>
+  <span class="flow-step">Select mood (auto-advance)</span>
+  <span class="flow-arrow">→</span>
+  <span class="flow-step">Tap highlight chip (auto-advance)</span>
+  <span class="flow-arrow">→</span>
+  <span class="flow-step">Tap challenge chip (auto-advance)</span>
+  <span class="flow-arrow">→</span>
+  <span class="flow-step">Set weekly goal</span>
+  <span class="flow-arrow">→</span>
+  <span class="flow-step">View score + history</span>
+</div>
+<p><strong>Why auto-advance?</strong> Eliminating the "Next" button on each step reduces taps from 8 to 4. The interaction feels fluid rather than procedural.</p>
+
+<h3>Flow 3: Setting a Savings Goal</h3>
+<div class="flow-diagram">
+  <span class="flow-step">Goals screen</span>
+  <span class="flow-arrow">→</span>
+  <span class="flow-step">Tap "+ Add New Goal"</span>
+  <span class="flow-arrow">→</span>
+  <span class="flow-step">Name the goal</span>
+  <span class="flow-arrow">→</span>
+  <span class="flow-step">Set target amount</span>
+  <span class="flow-arrow">→</span>
+  <span class="flow-step">Pick emoji icon</span>
+  <span class="flow-arrow">→</span>
+  <span class="flow-step">Create goal</span>
+</div>
+
+<!-- 7. VISUAL DESIGN -->
+<h2 id="visual">7. Visual Design System</h2>
+
+<h3>Color Palette</h3>
+<div class="color-palette">
+  <div class="color-swatch">
+    <div class="swatch" style="background:#4F46E5"></div>
+    <div class="swatch-label">Primary</div>
+    <div class="swatch-hex">#4F46E5</div>
+  </div>
+  <div class="color-swatch">
+    <div class="swatch" style="background:#818CF8"></div>
+    <div class="swatch-label">Primary Light</div>
+    <div class="swatch-hex">#818CF8</div>
+  </div>
+  <div class="color-swatch">
+    <div class="swatch" style="background:#EEF2FF"></div>
+    <div class="swatch-label">Primary BG</div>
+    <div class="swatch-hex">#EEF2FF</div>
+  </div>
+  <div class="color-swatch">
+    <div class="swatch" style="background:#F59E0B"></div>
+    <div class="swatch-label">Spending</div>
+    <div class="swatch-hex">#F59E0B</div>
+  </div>
+  <div class="color-swatch">
+    <div class="swatch" style="background:#10B981"></div>
+    <div class="swatch-label">Savings</div>
+    <div class="swatch-hex">#10B981</div>
+  </div>
+  <div class="color-swatch">
+    <div class="swatch" style="background:#0F172A"></div>
+    <div class="swatch-label">Text</div>
+    <div class="swatch-hex">#0F172A</div>
+  </div>
+  <div class="color-swatch">
+    <div class="swatch" style="background:#64748B"></div>
+    <div class="swatch-label">Secondary</div>
+    <div class="swatch-hex">#64748B</div>
+  </div>
+  <div class="color-swatch">
+    <div class="swatch" style="background:#F8FAFC;border:1px solid #E2E8F0"></div>
+    <div class="swatch-label">Background</div>
+    <div class="swatch-hex">#F8FAFC</div>
+  </div>
+</div>
+
+<p><strong>Why indigo?</strong> Most finance apps default to green (money) or blue (trust). Indigo stands apart — it conveys calm confidence without feeling corporate. It's energetic enough for a young audience but mature enough for financial context.</p>
+
+<p><strong>Why amber for spending (not red)?</strong> Red triggers anxiety. For users who already feel stressed about money, red "warning" labels on every expense reinforce avoidance. Warm amber signals awareness without alarm — "notice this" rather than "you've failed."</p>
+
+<h3>Typography</h3>
+<div class="type-scale">
+  <div class="type-row">
+    <span class="type-label">3XL / Hero</span>
+    <span style="font-size:2rem;font-weight:800;letter-spacing:-1px">₹32,475</span>
+  </div>
+  <div class="type-row">
+    <span class="type-label">2XL / Title</span>
+    <span style="font-size:1.5rem;font-weight:700">Hey, Aarav</span>
+  </div>
+  <div class="type-row">
+    <span class="type-label">LG / Section</span>
+    <span style="font-size:1.125rem;font-weight:700">Savings Goals</span>
+  </div>
+  <div class="type-row">
+    <span class="type-label">Base / Body</span>
+    <span style="font-size:0.9375rem">Your spending looks balanced this month.</span>
+  </div>
+  <div class="type-row">
+    <span class="type-label">SM / Caption</span>
+    <span style="font-size:0.8125rem;color:var(--text-secondary)">Food & Dining · 2 days ago</span>
+  </div>
+  <div class="type-row">
+    <span class="type-label">XS / Label</span>
+    <span style="font-size:0.75rem;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:var(--text-secondary)">MONTHLY INCOME</span>
+  </div>
+</div>
+<p>Inter is used throughout — it's designed for screens, has excellent legibility at small sizes, and includes tabular figures for aligned number columns.</p>
+
+<h3>Spacing & Layout</h3>
+<ul>
+  <li><strong>Base unit:</strong> 4px. All spacing uses multiples of 4 (8, 12, 16, 20, 24, 32, 40, 48).</li>
+  <li><strong>Card padding:</strong> 20px internal, 16px radius corners.</li>
+  <li><strong>Container:</strong> 480px max-width on desktop, 20px horizontal padding on mobile.</li>
+  <li><strong>Touch targets:</strong> Minimum 44px for all interactive elements.</li>
+</ul>
+
+<h3>Component Inventory</h3>
+<table>
+  <tr><th>Component</th><th>Usage</th><th>Notes</th></tr>
+  <tr><td>Card</td><td>Content containers, goals, summaries</td><td>16px radius, subtle border + shadow</td></tr>
+  <tr><td>Gradient Card</td><td>Balance hero, pulse score</td><td>Indigo gradient, white text</td></tr>
+  <tr><td>Button</td><td>Primary actions, form submissions</td><td>14px padding, 12px radius</td></tr>
+  <tr><td>Chip</td><td>Filters, categories, selections</td><td>Full radius, toggle state</td></tr>
+  <tr><td>Bottom Sheet</td><td>Forms, selections, confirmations</td><td>24px top radius, handle indicator</td></tr>
+  <tr><td>Progress Bar</td><td>Spending ratio, goal progress</td><td>6px height, rounded</td></tr>
+  <tr><td>Progress Ring</td><td>Goal cards</td><td>SVG-based, animated offset</td></tr>
+  <tr><td>Transaction Item</td><td>Activity lists</td><td>Icon + info + amount layout</td></tr>
+  <tr><td>Bottom Nav</td><td>Primary navigation</td><td>5 items, icon + label, fixed</td></tr>
+</table>
+
+<!-- 8. ACCESSIBILITY -->
+<h2 id="accessibility">8. Accessibility Considerations</h2>
+
+<ul>
+  <li><strong>Color contrast:</strong> All text meets WCAG AA standards. Primary text (#0F172A) on background (#F8FAFC) achieves a 15.4:1 ratio. Secondary text (#64748B) achieves 4.8:1.</li>
+  <li><strong>Touch targets:</strong> All buttons and interactive elements maintain a minimum 44×44px touch area.</li>
+  <li><strong>Semantic HTML:</strong> Proper heading hierarchy (h1 → h2 → h3), button elements for actions, nav for navigation.</li>
+  <li><strong>Color is not the only indicator:</strong> The spending ratio bar uses both color and percentage text. Transaction amounts use +/- signs alongside color.</li>
+  <li><strong>Dark mode:</strong> Full theme support with appropriate contrast adjustments for all elements.</li>
+  <li><strong>Emoji as icons:</strong> While emojis are decorative, text labels accompany all interactive elements to ensure screen reader compatibility.</li>
+</ul>
+
+<!-- 9. DECISIONS -->
+<h2 id="decisions">9. Key Design Decisions</h2>
+
+<table>
+  <tr><th>Decision</th><th>Rationale</th></tr>
+  <tr><td>Mobile-first design</td><td>Target users (22-28) are phone-primary. Financial check-ins happen on the go, not at a desk.</td></tr>
+  <tr><td>Emoji for category icons</td><td>Universal, friendly, instantly recognizable. Removes the need for a custom icon library and feels approachable rather than corporate.</td></tr>
+  <tr><td>Bottom sheets over modals</td><td>Maintain spatial context, thumb-reachable, less disruptive. They feel like a natural extension of the screen.</td></tr>
+  <tr><td>Five-item navigation</td><td>The maximum recommended for bottom tabs. Each destination is one tap away — no hamburger menus or nested navigation.</td></tr>
+  <tr><td>Conversational tone</td><td>"Hey, Alex" not "Welcome, user." "Where does your money go?" not "Configure spending categories." The language matches how the target audience talks.</td></tr>
+  <tr><td>Currency selector in onboarding</td><td>Users choose their currency (₹, $, €, £) upfront. All amounts, mock data, and formatting adapt. INR default reflects our primary young-professional audience in India.</td></tr>
+  <tr><td>Minimal onboarding data</td><td>Four lightweight steps, each with one clear purpose. Users can always adjust later. Reducing friction at entry increases completion rates.</td></tr>
+  <tr><td>Weekly Pulse, not daily</td><td>Daily check-ins cause fatigue and guilt when missed. Weekly balances consistency with sustainability. The pulsing widget creates gentle urgency without notifications.</td></tr>
+  <tr><td>Smart insights over raw data</td><td>Users don't want a spreadsheet — they want to know "Am I doing okay?" Comparative insights ("23% more than last month") are more meaningful than absolute numbers.</td></tr>
+</table>
+
+<!-- 10. FUTURE -->
+<h2 id="future">10. Future Considerations</h2>
+
+<p>This prototype demonstrates the core product concept. In a production context, the following areas would be explored:</p>
+
+<ul>
+  <li><strong>Bank account integration</strong> — Automatic transaction importing via Plaid or similar API, removing the need for manual entry.</li>
+  <li><strong>Budgeting system</strong> — Category-level budgets with weekly pacing (not just monthly totals) to help users course-correct early.</li>
+  <li><strong>Social accountability</strong> — Optional anonymous challenges with friends (e.g., "No-spend weekend") for peer motivation without exposing financial details.</li>
+  <li><strong>Push notifications</strong> — Thoughtful, opt-in nudges for Pulse reminders, goal milestones, and spending alerts.</li>
+  <li><strong>Machine learning insights</strong> — Pattern detection for recurring charges, subscription tracking, and predictive spending forecasts.</li>
+  <li><strong>Financial education</strong> — Contextual micro-lessons triggered by user behavior (e.g., "You just set your first goal — here's how compound interest helps").</li>
+</ul>
+
+<div class="highlight-box">
+  This prototype is intentionally focused on core experience over feature breadth. A smaller, well-thought-out design always communicates stronger product thinking than an expansive but shallow one.
+</div>
+
+</div>
+
+<footer>
+  Penny Buddy — UX Case Study · Designed as a product design assessment<br>
+  <a href="index.html" style="color:var(--primary);text-decoration:none;font-weight:600">View Interactive Prototype →</a>
+</footer>
+
+</body>
+</html>

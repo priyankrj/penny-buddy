@@ -1,0 +1,8 @@
+node_modules/
+__pycache__/
+*.pyc
+pennybuddy.db
+.claude/
+android/
+ios/
+.sixth/

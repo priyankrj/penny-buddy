@@ -1,0 +1,30 @@
+{
+  "name": "penny-buddy",
+  "version": "1.0.0",
+  "description": "Penny Buddy — Personal Finance for Young Professionals. Track expenses, set savings goals, and take control of your finances.",
+  "main": "server.py",
+  "scripts": {
+    "start": "python server.py",
+    "build:web": "node build-www.js",
+    "cap:sync": "npm run build:web && npx cap sync",
+    "cap:open:android": "npx cap open android",
+    "cap:open:ios": "npx cap open ios",
+    "build:android": "npm run cap:sync && npx cap open android",
+    "build:ios": "npm run cap:sync && npx cap open ios"
+  },
+  "keywords": ["finance", "budgeting", "expense-tracker", "savings", "mobile-app"],
+  "author": "Penny Buddy Team",
+  "license": "MIT",
+  "dependencies": {
+    "@capacitor/core": "^6.0.0",
+    "@capacitor/cli": "^6.0.0",
+    "@capacitor/android": "^6.0.0",
+    "@capacitor/ios": "^6.0.0",
+    "@capacitor/splash-screen": "^6.0.0",
+    "@capacitor/status-bar": "^6.0.0",
+    "@capacitor/haptics": "^6.0.0",
+    "@capacitor/keyboard": "^6.0.0",
+    "@capacitor/local-notifications": "^6.0.0",
+    "@capacitor/app": "^6.0.0"
+  }
+}
