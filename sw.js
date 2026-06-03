@@ -64,7 +64,7 @@ self.addEventListener('fetch', (event) => {
           }
           // For POST/PUT/DELETE when offline, return an error
           return new Response(
-            JSON.stringify({ error: 'You are offline. This action will be synced when you reconnect.' }),
+            JSON.stringify({ error: 'Server not reachable — make sure it\'s running', offline: true }),
             { status: 503, headers: { 'Content-Type': 'application/json' } }
           );
         })

@@ -5,6 +5,7 @@
    =================================================================== */
 
 const API = '';  // same origin
+let authToken = localStorage.getItem('pb_token') || null;
 
 // ===== CAPACITOR NATIVE BRIDGE =====
 const isNativeApp = typeof window.Capacitor !== 'undefined';
@@ -152,19 +153,175 @@ function showToast(message) {
 
 // ===== API HELPERS =====
 async function api(endpoint, options = {}) {
-  const fetchOpts = { method: options.method || 'GET' };
+  const fetchOpts = { method: options.method || 'GET', headers: {} };
+  if (authToken) {
+    fetchOpts.headers['Authorization'] = 'Bearer ' + authToken;
+  }
   if (options.body) {
-    fetchOpts.headers = { 'Content-Type': 'application/json' };
+    fetchOpts.headers['Content-Type'] = 'application/json';
     fetchOpts.body = JSON.stringify(options.body);
   }
   try {
     const res = await fetch(API + endpoint, fetchOpts);
-    if (!res.ok) throw new Error('Server error (' + res.status + ')');
+    if (res.status === 401) {
+      authToken = null;
+      localStorage.removeItem('pb_token');
+      showAuthScreen();
+      return null;
+    }
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      if (errData.error) { showToast(errData.error); return null; }
+      throw new Error('Server error (' + res.status + ')');
+    }
     return await res.json();
   } catch (err) {
     console.error('API error:', endpoint, err);
     showToast('Something went wrong. Please check your connection.');
     return null;
+  }
+}
+
+// ===== AUTH =====
+function showAuthScreen() {
+  document.getElementById('onboarding').classList.remove('active');
+  document.getElementById('app-shell').classList.remove('active');
+  document.getElementById('auth-screen').classList.add('active');
+}
+
+async function handleLogin() {
+  const email = document.getElementById('auth-email').value.trim();
+  const password = document.getElementById('auth-password').value;
+  if (!email || !password) { showToast('Please fill in all fields'); return; }
+
+  const res = await fetch(API + '/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password })
+  }).catch(() => null);
+  if (!res) { showToast('Cannot reach server — is it running?'); return; }
+  const data = await res.json();
+  if (res.status === 503) { showToast('Cannot reach server — is it running?'); return; }
+  if (!res.ok) { showToast(data.error || 'Login failed'); return; }
+
+  authToken = data.token;
+  localStorage.setItem('pb_token', authToken);
+  document.getElementById('auth-screen').classList.remove('active');
+  if (data.onboarding_done) {
+    await initAfterAuth();
+  } else {
+    document.getElementById('onboarding').classList.add('active');
+  }
+}
+
+function validatePassword(pw) {
+  if (pw.length < 8) return 'Password must be at least 8 characters';
+  if (!/[A-Z]/.test(pw)) return 'Add at least one uppercase letter (A-Z)';
+  if (!/[a-z]/.test(pw)) return 'Add at least one lowercase letter (a-z)';
+  if (!/[0-9]/.test(pw)) return 'Add at least one number (0-9)';
+  if (!/[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\\/~`]/.test(pw)) return 'Add at least one special character (!@#$% etc.)';
+  return null;
+}
+
+function validateEmail(email) {
+  return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email);
+}
+
+async function handleSignup() {
+  const name = document.getElementById('auth-signup-name').value.trim();
+  const email = document.getElementById('auth-signup-email').value.trim().toLowerCase();
+  const password = document.getElementById('auth-signup-password').value;
+  if (!name || !email || !password) { showToast('Please fill in all fields'); return; }
+  if (name.length < 2) { showToast('Name must be at least 2 characters'); return; }
+  if (!validateEmail(email)) { showToast('Enter a valid email (e.g. you@gmail.com)'); return; }
+  const pwError = validatePassword(password);
+  if (pwError) { showToast(pwError); return; }
+
+  const res = await fetch(API + '/api/auth/signup', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, email, password })
+  }).catch(() => null);
+  if (!res) { showToast('Cannot reach server — is it running?'); return; }
+  const data = await res.json();
+  if (res.status === 503) { showToast('Cannot reach server — is it running?'); return; }
+  if (!res.ok) { showToast(data.error || 'Signup failed'); return; }
+
+  authToken = data.token;
+  localStorage.setItem('pb_token', authToken);
+  document.getElementById('auth-screen').classList.remove('active');
+  document.getElementById('onboarding').classList.add('active');
+  document.getElementById('ob-name').value = name;
+}
+
+async function handleGuestLogin() {
+  const res = await fetch(API + '/api/auth/guest', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' }
+  }).catch(() => null);
+  if (!res) { showToast('Cannot reach server — is it running?'); return; }
+  const data = await res.json();
+  if (res.status === 503) { showToast('Cannot reach server — is it running?'); return; }
+  if (!res.ok) { showToast(data.error || 'Guest login failed'); return; }
+
+  authToken = data.token;
+  localStorage.setItem('pb_token', authToken);
+  document.getElementById('auth-screen').classList.remove('active');
+  document.getElementById('onboarding').classList.add('active');
+}
+
+function togglePasswordVisibility(inputId, btn) {
+  const input = document.getElementById(inputId);
+  if (input.type === 'password') {
+    input.type = 'text';
+    btn.textContent = 'Hide';
+  } else {
+    input.type = 'password';
+    btn.textContent = 'Show';
+  }
+}
+
+function showPasswordStrength(pw) {
+  const rules = [
+    { id: 'pw-len', test: pw.length >= 8 },
+    { id: 'pw-upper', test: /[A-Z]/.test(pw) },
+    { id: 'pw-lower', test: /[a-z]/.test(pw) },
+    { id: 'pw-num', test: /[0-9]/.test(pw) },
+    { id: 'pw-special', test: /[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\\/~`]/.test(pw) }
+  ];
+  rules.forEach(r => {
+    const el = document.getElementById(r.id);
+    if (el) el.classList.toggle('pass', r.test);
+  });
+}
+
+function switchAuthTab(tab) {
+  document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.auth-form').forEach(f => f.classList.remove('active'));
+  document.querySelector(`.auth-tab[data-tab="${tab}"]`).classList.add('active');
+  document.getElementById('auth-form-' + tab).classList.add('active');
+}
+
+async function handleLogout() {
+  await api('/api/auth/logout', { method: 'POST' });
+  authToken = null;
+  localStorage.removeItem('pb_token');
+  user = null;
+  showAuthScreen();
+}
+
+async function initAfterAuth() {
+  const data = await api('/api/user');
+  if (!data) return;
+  document.getElementById('auth-screen').classList.remove('active');
+  if (data.exists) {
+    user = data;
+    if (user.theme === 'dark') document.documentElement.dataset.theme = 'dark';
+    document.getElementById('onboarding').classList.remove('active');
+    document.getElementById('app-shell').classList.add('active');
+    await renderAll();
+  } else {
+    document.getElementById('onboarding').classList.add('active');
   }
 }
 
@@ -179,16 +336,32 @@ async function init() {
   selectedYear = now.getFullYear();
 
   try {
+    if (!authToken) {
+      showAuthScreen();
+      return;
+    }
+    const check = await fetch(API + '/api/auth/check', {
+      headers: { 'Authorization': 'Bearer ' + authToken }
+    }).then(r => r.json());
+    if (!check.authenticated) {
+      authToken = null;
+      localStorage.removeItem('pb_token');
+      showAuthScreen();
+      return;
+    }
+
     const data = await api('/api/user');
     if (!data) return;
+    document.getElementById('auth-screen').classList.remove('active');
     if (data.exists) {
       user = data;
       if (user.theme === 'dark') document.documentElement.dataset.theme = 'dark';
       document.getElementById('onboarding').classList.remove('active');
       document.getElementById('app-shell').classList.add('active');
       await renderAll();
+    } else {
+      document.getElementById('onboarding').classList.add('active');
     }
-    // else: stay on onboarding
   } catch (err) {
     console.error('Init failed:', err);
     showToast('Failed to load app. Please refresh.');
@@ -252,7 +425,7 @@ async function completeOnboarding() {
     });
   }
 
-  user = { name, currency, income, savings_target: savings, budget: 0, categories: cats, theme: 'light', exists: true };
+  user = { ...user, name, currency, income, savings_target: savings, budget: 0, categories: cats, theme: 'light', exists: true };
 
   document.getElementById('onboarding').classList.remove('active');
   document.getElementById('app-shell').classList.add('active');
@@ -276,10 +449,17 @@ function navigateTo(viewId) {
     n.classList.toggle('active', n.dataset.view === viewId);
   });
   window.scrollTo(0, 0);
+  if (viewId === 'dashboard') renderDashboard();
+  if (viewId === 'savings-target-screen') renderSavingsTargetScreen();
 }
 
 // ===== BOTTOM SHEETS =====
 function openSheet(id) {
+  // Pre-fill the financials sheet with current values
+  if (id === 'edit-financials') {
+    document.getElementById('edit-income').value = user.income || '';
+    document.getElementById('edit-savings').value = user.savings_target || '';
+  }
   document.getElementById('sheet-overlay').classList.add('active');
   document.getElementById('sheet-' + id).classList.add('active');
   document.body.style.overflow = 'hidden';
@@ -352,9 +532,55 @@ async function renderDashboard() {
   if (!summary) return;
 
   document.getElementById('balance-amount').textContent = fmt(summary.balance);
-  document.getElementById('dash-income').textContent = fmt(summary.income);
-  document.getElementById('dash-spent').textContent = fmt(summary.expenses);
-  document.getElementById('dash-saved').textContent = fmtShort(summary.total_saved);
+  document.getElementById('dash-income').textContent = fmtShort(summary.income);
+  document.getElementById('dash-spent').textContent = fmtShort(summary.expenses);
+  document.getElementById('dash-balance-left').textContent = fmtShort(Math.max(summary.balance, 0));
+
+  // Weekly calculations — values come from server, no client-side math needed
+  const weeklyIncome = user.weekly_income || 0;
+  const weeklyTarget = user.weekly_target || 0;
+  const weeklyBudget = user.weekly_budget || 0;
+  const weekNum      = user.week_num || 1;
+
+  document.getElementById('balance-week-badge').textContent = `Week ${weekNum} of 4`;
+
+  // Saved this week: starts at 0 Monday, accumulates daily, resets next Monday
+  const weekSaved = summary.week_saved_accrued || 0;
+  document.getElementById('dash-week-saved').textContent = fmtShort(weekSaved);
+  document.getElementById('dash-week-budget').textContent = fmtShort(weeklyBudget);
+  document.getElementById('dash-week-target').textContent = fmtShort(weeklyTarget);
+
+  const targetBarRow = document.getElementById('balance-target-bar-row');
+  if (weeklyTarget > 0) {
+    targetBarRow.style.display = '';
+    const weekPct = Math.min(Math.round((weekSaved / weeklyTarget) * 100), 100);
+    document.getElementById('balance-target-bar-fill').style.width = weekPct + '%';
+    if (summary.week_end) {
+      const endDate = new Date(summary.week_end + 'T23:59:59');
+      const daysLeft = Math.max(Math.ceil((endDate - new Date()) / 86400000), 0);
+      document.getElementById('balance-target-reset').textContent =
+        weekPct >= 100 ? '✓ Goal hit!' :
+        daysLeft === 0 ? 'Resets tomorrow' :
+        `${weekPct}%  ·  ${daysLeft}d left`;
+    }
+  } else {
+    targetBarRow.style.display = 'none';
+  }
+
+  // Overspend indicator — shown when weekly expenses exceed the weekly budget
+  const weekExpenses = summary.week_expenses || 0;
+  const overspend = weekExpenses - weeklyBudget;
+  const overspendRow = document.getElementById('balance-overspend-row');
+  if (weeklyBudget > 0 && overspend > 0) {
+    overspendRow.style.display = '';
+    const overpct = Math.min(Math.round((overspend / weeklyBudget) * 100), 100);
+    document.getElementById('balance-overspend-fill').style.width = overpct + '%';
+    document.getElementById('balance-overspend-text').textContent = fmtShort(overspend) + ' excess';
+    document.getElementById('balance-carryover-text').textContent =
+      `${fmtShort(overspend)} added to next week's savings target to recover`;
+  } else {
+    overspendRow.style.display = 'none';
+  }
 
   const ratio = summary.spending_ratio;
   document.getElementById('ratio-pct').textContent = Math.round(ratio) + '%';
@@ -476,6 +702,220 @@ function filterTx(cat) {
 }
 
 // ===== GOALS =====
+function renderSavingsPriority(summary) {
+  const target = user.savings_target || 0;
+  const card = document.getElementById('savings-priority-card');
+  if (target <= 0) {
+    card.style.display = 'none';
+    return;
+  }
+  card.style.display = '';
+
+  const actualSaved = Math.max(summary.income - summary.expenses, 0);
+  const pct = Math.min(Math.round((actualSaved / target) * 100), 100);
+  const now = new Date();
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const dayOfMonth = now.getDate();
+  const expectedPct = Math.round((dayOfMonth / daysInMonth) * 100);
+
+  document.getElementById('savings-actual').textContent = fmtShort(actualSaved);
+  document.getElementById('savings-target-amount').textContent = fmtShort(target);
+  document.getElementById('savings-progress-fill').style.width = pct + '%';
+  document.getElementById('savings-pct').textContent = pct + '% achieved';
+
+  const badge = document.getElementById('savings-badge');
+  if (pct >= 100) {
+    badge.textContent = 'Achieved';
+    badge.className = 'savings-priority-badge achieved';
+  } else if (pct >= expectedPct * 0.8) {
+    badge.textContent = 'On Track';
+    badge.className = 'savings-priority-badge on-track';
+  } else if (pct >= expectedPct * 0.5) {
+    badge.textContent = 'Behind';
+    badge.className = 'savings-priority-badge behind';
+  } else {
+    badge.textContent = 'At Risk';
+    badge.className = 'savings-priority-badge at-risk';
+  }
+
+  const remaining = Math.max(target - actualSaved, 0);
+  const daysLeft = daysInMonth - dayOfMonth;
+  const dailyNeeded = daysLeft > 0 ? remaining / daysLeft : 0;
+  const weeklyNeeded = remaining > 0 ? Math.ceil(remaining / Math.max(Math.ceil(daysLeft / 7), 1)) : 0;
+
+  const cats = summary.categories || [];
+  const topCat = cats.length > 0 ? cats[0] : null;
+
+  let tips = [];
+
+  if (pct >= 100) {
+    tips.push({ icon: '✅', text: '<strong>You hit your savings target!</strong> Consider increasing it or putting extra into a goal.' });
+  } else {
+    tips.push({ icon: '📅', text: `Save <strong>${fmtShort(dailyNeeded)}/day</strong> or <strong>${fmtShort(weeklyNeeded)}/week</strong> for the rest of the month to hit your target.`, highlight: `${daysLeft} days left` });
+
+    if (topCat && topCat.total > 0) {
+      const cutPct = Math.min(20, Math.round((remaining / topCat.total) * 100));
+      tips.push({ icon: '✂️', text: `Your top spend is <strong>${topCat.category}</strong> (${fmtShort(topCat.total)}). Cutting ${cutPct}% would save ${fmtShort(Math.round(topCat.total * cutPct / 100))}.` });
+    }
+
+    if (summary.expenses > 0 && summary.income > 0) {
+      const idealSpend = summary.income - target;
+      if (summary.expenses > idealSpend) {
+        tips.push({ icon: '⚠️', text: `You've spent <strong>${fmtShort(summary.expenses)}</strong> but can only afford <strong>${fmtShort(idealSpend)}</strong> to meet your target. Tighten spending by <strong>${fmtShort(summary.expenses - idealSpend)}</strong>.` });
+      }
+    }
+
+    if (cats.length >= 2) {
+      const discretionary = cats.filter(c => ['shopping', 'entertainment', 'subscriptions', 'food'].includes(c.category));
+      const discretionaryTotal = discretionary.reduce((s, c) => s + c.total, 0);
+      if (discretionaryTotal > 0 && remaining > 0) {
+        tips.push({ icon: '💡', text: `Discretionary spending is <strong>${fmtShort(discretionaryTotal)}</strong>. Small daily cuts add up fast.` });
+      }
+    }
+  }
+
+  const planEl = document.getElementById('savings-action-plan');
+  planEl.innerHTML = `<h4>🚩 How to achieve it</h4>` +
+    tips.map(t =>
+      `<div class="action-tip">
+        <span class="action-tip-icon">${t.icon}</span>
+        <div class="action-tip-text">${t.text}${t.highlight ? `<br><span class="action-tip-highlight">${t.highlight}</span>` : ''}</div>
+      </div>`
+    ).join('');
+}
+
+async function renderSavingsTargetScreen() {
+  const container = document.getElementById('savings-target-detail');
+  const target = user.savings_target || 0;
+  if (target <= 0) {
+    container.innerHTML = `
+      <div style="text-align:center;padding:40px 0">
+        <div style="font-size:2.5rem;margin-bottom:12px">&#127919;</div>
+        <p style="color:var(--text-secondary);font-size:0.9375rem;margin-bottom:20px">No savings target set yet.<br>Set one during onboarding or update your profile.</p>
+      </div>`;
+    return;
+  }
+
+  const now = new Date();
+  const month = getMonthStr(now.getFullYear(), now.getMonth());
+  const summary = await api('/api/summary?month=' + month);
+  if (!summary) return;
+
+  // Weekly — use server-calculated values from user object
+  const weeklyTarget = user.weekly_target || Math.round(target / 4);
+  const weeklyIncome = user.weekly_income || 0;
+  const weeklyBudget = user.weekly_budget || 0;
+  const weekSaved = Math.max(weeklyIncome - (summary.week_expenses || 0), 0);
+  const weekPct = Math.min(Math.round((weekSaved / weeklyTarget) * 100), 100);
+  const weekEnd = summary.week_end ? new Date(summary.week_end + 'T23:59:59') : null;
+  const weekDaysLeft = weekEnd ? Math.max(Math.ceil((weekEnd - now) / 86400000), 0) : 0;
+  let weekStatus, weekStatusClass;
+  const weekDayNum = now.getDay() === 0 ? 7 : now.getDay();
+  const weekExpectedPct = Math.round((weekDayNum / 7) * 100);
+  if (weekPct >= 100) { weekStatus = 'Achieved'; weekStatusClass = 'achieved'; }
+  else if (weekPct >= weekExpectedPct * 0.8) { weekStatus = 'On Track'; weekStatusClass = 'on-track'; }
+  else if (weekPct >= weekExpectedPct * 0.5) { weekStatus = 'Behind'; weekStatusClass = 'behind'; }
+  else { weekStatus = 'At Risk'; weekStatusClass = 'at-risk'; }
+  const weekRemaining = Math.max(weeklyTarget - weekSaved, 0);
+  const weekDailyNeeded = weekDaysLeft > 0 ? weekRemaining / weekDaysLeft : 0;
+
+  // Monthly
+  const actualSaved = Math.max(summary.income - summary.expenses, 0);
+  const pct = Math.min(Math.round((actualSaved / target) * 100), 100);
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const dayOfMonth = now.getDate();
+  const expectedPct = Math.round((dayOfMonth / daysInMonth) * 100);
+  const remaining = Math.max(target - actualSaved, 0);
+  const daysLeft = daysInMonth - dayOfMonth;
+  let monthStatus, monthStatusClass;
+  if (pct >= 100) { monthStatus = 'Achieved'; monthStatusClass = 'achieved'; }
+  else if (pct >= expectedPct * 0.8) { monthStatus = 'On Track'; monthStatusClass = 'on-track'; }
+  else if (pct >= expectedPct * 0.5) { monthStatus = 'Behind'; monthStatusClass = 'behind'; }
+  else { monthStatus = 'At Risk'; monthStatusClass = 'at-risk'; }
+
+  const cats = summary.categories || [];
+  const topCat = cats.length > 0 ? cats[0] : null;
+
+  let tipsHtml = '';
+  if (weekPct >= 100) {
+    tipsHtml += `<div class="action-tip"><span class="action-tip-icon">&#9989;</span><div class="action-tip-text"><strong>Weekly goal hit!</strong> Keep it up for the rest of the month.</div></div>`;
+  } else {
+    tipsHtml += `<div class="action-tip"><span class="action-tip-icon">&#128197;</span><div class="action-tip-text">Save <strong>${fmtShort(weekDailyNeeded)}/day</strong> this week to stay on track.<br><span class="action-tip-highlight">${weekDaysLeft} day${weekDaysLeft !== 1 ? 's' : ''} left this week</span></div></div>`;
+  }
+  if (topCat && topCat.total > 0 && remaining > 0) {
+    const cutPct = Math.min(20, Math.round((remaining / topCat.total) * 100));
+    tipsHtml += `<div class="action-tip"><span class="action-tip-icon">&#9986;&#65039;</span><div class="action-tip-text">Top spend: <strong>${topCat.category}</strong> (${fmtShort(topCat.total)}). Cut ${cutPct}% to save ${fmtShort(Math.round(topCat.total * cutPct / 100))}.</div></div>`;
+  }
+  if (summary.expenses > 0 && summary.income > 0 && remaining > 0) {
+    const idealSpend = summary.income - target;
+    if (summary.expenses > idealSpend) {
+      tipsHtml += `<div class="action-tip"><span class="action-tip-icon">&#9888;&#65039;</span><div class="action-tip-text">Spent <strong>${fmtShort(summary.expenses)}</strong> but budget allows <strong>${fmtShort(idealSpend)}</strong>. Tighten by <strong>${fmtShort(summary.expenses - idealSpend)}</strong>.</div></div>`;
+    }
+  }
+
+  container.innerHTML = `
+    <div class="card" style="margin-bottom:16px;border:2px solid var(--primary);border-radius:var(--radius-lg)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <h3 style="font-size:1rem;font-weight:700">&#128293; This Week</h3>
+        <div class="savings-priority-badge ${weekStatusClass}">${weekStatus}</div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
+        <span style="font-size:1.5rem;font-weight:800;color:var(--primary)">${fmtShort(weekSaved)}</span>
+        <span style="font-size:0.875rem;color:var(--text-secondary)">of ${fmtShort(weeklyTarget)}</span>
+      </div>
+      <div class="savings-priority-progress"><div class="savings-priority-progress-fill" style="width:${weekPct}%"></div></div>
+      <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:0.75rem;color:var(--text-secondary)">
+        <span>${weekPct}% achieved</span>
+        <span>Resets in ${weekDaysLeft} day${weekDaysLeft !== 1 ? 's' : ''}</span>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+        <h3 style="font-size:1rem;font-weight:700">&#128197; ${now.toLocaleString('default',{month:'long'})}</h3>
+        <div class="savings-priority-badge ${monthStatusClass}">${monthStatus}</div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
+        <span style="font-size:1.25rem;font-weight:800;color:var(--text)">${fmtShort(actualSaved)}</span>
+        <span style="font-size:0.875rem;color:var(--text-secondary)">of ${fmtShort(target)}</span>
+      </div>
+      <div class="savings-priority-progress"><div class="savings-priority-progress-fill" style="width:${pct}%"></div></div>
+      <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:0.75rem;color:var(--text-secondary)">
+        <span>${pct}% achieved</span>
+        <span>${daysLeft} days left</span>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px">
+      <h3 style="font-size:0.9375rem;font-weight:700;margin-bottom:14px">&#128200; Breakdown</h3>
+      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+        <span style="color:var(--text-secondary)">This week saved</span>
+        <strong style="color:#10B981">${fmt(weekSaved)}</strong>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+        <span style="color:var(--text-secondary)">Weekly target</span>
+        <strong>${fmt(weeklyTarget)}</strong>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+        <span style="color:var(--text-secondary)">Monthly income</span>
+        <strong>${fmt(summary.income)}</strong>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+        <span style="color:var(--text-secondary)">Monthly expenses</span>
+        <strong style="color:#EF4444">${fmt(summary.expenses)}</strong>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:8px 0">
+        <span style="color:var(--text-secondary)">Still needed (month)</span>
+        <strong style="color:${remaining > 0 ? '#F59E0B' : '#10B981'}">${fmt(remaining)}</strong>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="font-size:0.9375rem;font-weight:700;margin-bottom:14px">&#128681; How to achieve it</h3>
+      ${tipsHtml}
+    </div>`;
+}
+
 function getWeeklySavingsPlan(saved, target) {
   const remaining = target - saved;
   if (remaining <= 0) return null;
@@ -822,9 +1262,13 @@ function renderProfile() {
   const initial = (user.name || 'U')[0].toUpperCase();
   document.getElementById('profile-avatar').textContent = initial;
   document.getElementById('profile-name').textContent = user.name || 'User';
+  document.getElementById('profile-email').textContent = user.email || '';
   document.getElementById('dark-toggle').classList.toggle('active', user.theme === 'dark');
   const c = getCurrency();
   document.getElementById('currency-display').textContent = c.code + ' ' + c.symbol;
+  // Show current income on the financial settings row
+  const incomeEl = document.getElementById('profile-income-display');
+  if (incomeEl) incomeEl.textContent = user.income ? fmtShort(user.income) : '';
 }
 
 async function toggleDarkMode() {
@@ -919,6 +1363,27 @@ async function setBudget() {
   }
 }
 
+async function saveFinancials() {
+  const income  = parseFloat(document.getElementById('edit-income').value.replace(/[^0-9.]/g, ''));
+  const savings = parseFloat(document.getElementById('edit-savings').value.replace(/[^0-9.]/g, ''));
+  if (!income || income <= 0) { showToast('Enter a valid monthly income'); return; }
+  if (isNaN(savings) || savings < 0) { showToast('Enter a valid savings target'); return; }
+  if (savings >= income) { showToast('Savings target must be less than income'); return; }
+
+  const result = await api('/api/user', { method: 'PUT', body: { income, savings_target: savings } });
+  if (!result) return;
+
+  // Refresh the full user profile so weekly values recalculate server-side
+  const fresh = await api('/api/user');
+  if (fresh) user = { ...user, ...fresh };
+
+  closeSheet();
+  showToast('Financial settings updated!');
+  await renderDashboard();
+  // Update the inline display on the Profile row
+  document.getElementById('profile-income-display').textContent = fmtShort(income);
+}
+
 async function addNewGoal() {
   const name = document.getElementById('new-goal-name').value.trim();
   const target = parseFloat(document.getElementById('new-goal-target').value.replace(/[^0-9.]/g, ''));
@@ -937,15 +1402,15 @@ async function addNewGoal() {
 }
 
 async function resetApp() {
-  if (confirm('Reset all data and start fresh? This will delete all your transactions, goals, and settings.')) {
-    const resetResult = await api('/api/reset', { method: 'POST' });
-    if (!resetResult) return;
-    // Clear cached API responses so stale data doesn't persist after reset
-    if ('caches' in window) {
-      await caches.delete('penny-buddy-api-v1');
-    }
-    location.reload();
-  }
+  if (!authToken) { showToast('Please log in to reset your data'); return; }
+  if (!confirm('Reset all data? This will delete all your transactions and goals. Your account and settings will be kept.')) return;
+  const result = await api('/api/reset', { method: 'POST' });
+  if (!result) { showToast('Reset failed — please try again.'); return; }
+  if ('caches' in window) await caches.delete('penny-buddy-api-v1');
+  showToast('All data cleared!');
+  // Re-render in place — no reload, so init() can't send us back to onboarding
+  await renderAll();
+  navigateTo('dashboard');
 }
 
 // ===== QUICK ADD EXPENSE (Dashboard) =====

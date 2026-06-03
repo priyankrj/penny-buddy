@@ -26,8 +26,68 @@
 </head>
 <body>
 
+<!-- ===== AUTH SCREEN ===== -->
+<section id="auth-screen" class="view active">
+  <div class="onboarding-header">
+    <div class="logo">Penny Buddy</div>
+    <div class="tagline">Money made simple</div>
+  </div>
+  <div class="container">
+    <div class="auth-tabs">
+      <div class="auth-tab active" data-tab="login" onclick="switchAuthTab('login')">Log In</div>
+      <div class="auth-tab" data-tab="signup" onclick="switchAuthTab('signup')">Sign Up</div>
+    </div>
+
+    <div class="auth-form active" id="auth-form-login">
+      <div class="input-group">
+        <label>Email</label>
+        <input type="email" class="input-field" id="auth-email" placeholder="you@example.com" autocomplete="email">
+      </div>
+      <div class="input-group">
+        <label>Password</label>
+        <div class="password-wrapper">
+          <input type="password" class="input-field" id="auth-password" placeholder="Your password" autocomplete="current-password">
+          <button type="button" class="pw-toggle" onclick="togglePasswordVisibility('auth-password', this)">Show</button>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-full" onclick="handleLogin()">Log In</button>
+    </div>
+
+    <div class="auth-form" id="auth-form-signup">
+      <div class="input-group">
+        <label>Your Name</label>
+        <input type="text" class="input-field" id="auth-signup-name" placeholder="First name" autocomplete="given-name">
+      </div>
+      <div class="input-group">
+        <label>Email</label>
+        <input type="email" class="input-field" id="auth-signup-email" placeholder="you@example.com" autocomplete="email">
+      </div>
+      <div class="input-group pw-input-group">
+        <label>Password</label>
+        <div class="password-wrapper">
+          <input type="password" class="input-field" id="auth-signup-password" placeholder="Create a strong password" autocomplete="new-password" oninput="showPasswordStrength(this.value)" onfocus="document.getElementById('pw-popup').classList.add('visible')" onblur="setTimeout(()=>document.getElementById('pw-popup').classList.remove('visible'),200)">
+          <button type="button" class="pw-toggle" onclick="togglePasswordVisibility('auth-signup-password', this)">Show</button>
+        </div>
+        <div class="pw-popup" id="pw-popup">
+          <div class="pw-popup-title">Password must have:</div>
+          <label class="pw-check" id="pw-len"><span class="pw-checkbox"></span> At least 8 characters</label>
+          <label class="pw-check" id="pw-upper"><span class="pw-checkbox"></span> One uppercase letter (A-Z)</label>
+          <label class="pw-check" id="pw-lower"><span class="pw-checkbox"></span> One lowercase letter (a-z)</label>
+          <label class="pw-check" id="pw-num"><span class="pw-checkbox"></span> One number (0-9)</label>
+          <label class="pw-check" id="pw-special"><span class="pw-checkbox"></span> One special character (!@#$%&*)</label>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-full" onclick="handleSignup()">Create Account</button>
+    </div>
+
+    <div class="auth-divider"><span>or</span></div>
+    <button class="btn btn-full guest-btn" onclick="handleGuestLogin()">Try as Guest</button>
+    <p class="guest-note">No sign-up needed. Your data won't be saved after you leave.</p>
+  </div>
+</section>
+
 <!-- ===== ONBOARDING ===== -->
-<section id="onboarding" class="view active">
+<section id="onboarding" class="view">
   <div class="onboarding-header">
     <div class="logo">Penny Buddy</div>
     <div class="tagline">Money made simple</div>
@@ -115,11 +175,17 @@
 
       <!-- Balance Card -->
       <div class="card card-gradient balance-card">
-        <div class="balance-label">Available Balance</div>
-        <div class="balance-amount" id="balance-amount">&#8377;0</div>
+        <div class="balance-top-row">
+          <div>
+            <div class="balance-label">Available Balance</div>
+            <div class="balance-amount" id="balance-amount">&#8377;0</div>
+          </div>
+          <div class="balance-week-badge" id="balance-week-badge">Week 1 of 4</div>
+        </div>
+
         <div class="balance-row">
           <div class="balance-item">
-            <span>Income</span>
+            <span>Salary</span>
             <strong id="dash-income">&#8377;0</strong>
           </div>
           <div class="balance-item">
@@ -127,13 +193,50 @@
             <strong id="dash-spent">&#8377;0</strong>
           </div>
           <div class="balance-item">
-            <span>Saved</span>
-            <strong id="dash-saved">&#8377;0</strong>
+            <span>Balance</span>
+            <strong id="dash-balance-left">&#8377;0</strong>
           </div>
         </div>
+
+        <div class="balance-week-grid" id="balance-target-row">
+          <div class="balance-week-cell">
+            <span class="balance-week-label">Weekly Budget</span>
+            <span class="balance-week-val" id="dash-week-budget">&#8377;0</span>
+          </div>
+          <div class="balance-week-cell">
+            <span class="balance-week-label">Saved This Week</span>
+            <span class="balance-week-val" id="dash-week-saved">&#8377;0</span>
+          </div>
+          <div class="balance-week-cell">
+            <span class="balance-week-label">To Save This Week</span>
+            <span class="balance-week-val" id="dash-week-target">&#8377;0</span>
+          </div>
+        </div>
+
+        <div class="balance-target-row-bar" id="balance-target-bar-row">
+          <div class="balance-target-info">
+            <span>&#127919; Weekly savings goal</span>
+            <span id="balance-target-reset"></span>
+          </div>
+          <div class="balance-target-bar">
+            <div class="balance-target-bar-fill" id="balance-target-bar-fill"></div>
+          </div>
+        </div>
+
+        <div class="balance-overspend-row" id="balance-overspend-row" style="display:none">
+          <div class="balance-target-info">
+            <span>&#9888;&#65039; Over weekly budget</span>
+            <span id="balance-overspend-text"></span>
+          </div>
+          <div class="balance-target-bar">
+            <div class="balance-overspend-fill" id="balance-overspend-fill"></div>
+          </div>
+          <div class="balance-carryover-text" id="balance-carryover-text"></div>
+        </div>
+
         <div class="spending-ratio">
           <div class="spending-ratio-label">
-            <span>Spending ratio</span>
+            <span>Monthly spending ratio</span>
             <span id="ratio-pct">0%</span>
           </div>
           <div class="progress-bar">
@@ -247,6 +350,16 @@
     <button class="fab" onclick="openSheet('add-expense')">+</button>
   </section>
 
+  <!-- SAVINGS TARGET -->
+  <section id="savings-target-screen" class="screen">
+    <div class="container">
+      <div class="screen-header">
+        <h1>Savings Target</h1>
+      </div>
+      <div id="savings-target-detail"></div>
+    </div>
+  </section>
+
   <!-- GOALS -->
   <section id="goals-screen" class="screen">
     <div class="container">
@@ -321,7 +434,7 @@
       <div class="profile-header">
         <div class="profile-avatar" id="profile-avatar">U</div>
         <div class="profile-name" id="profile-name">User</div>
-        <div class="profile-email">user@example.com</div>
+        <div class="profile-email" id="profile-email">user@example.com</div>
       </div>
       <div class="profile-section">
         <div class="settings-group">
@@ -355,6 +468,21 @@
           </div>
         </div>
         <div class="settings-group">
+          <div class="settings-group-title">Financial Settings</div>
+          <div class="settings-list">
+            <div class="settings-item" onclick="openSheet('edit-financials')">
+              <div class="settings-left">
+                <span class="settings-icon">&#128176;</span>
+                <span class="settings-label">Monthly Salary &amp; Savings Target</span>
+              </div>
+              <div class="settings-right">
+                <span id="profile-income-display" style="font-size:0.75rem;opacity:0.7;margin-right:6px"></span>
+                &rarr;
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="settings-group">
           <div class="settings-group-title">Account</div>
           <div class="settings-list">
             <div class="settings-item">
@@ -375,6 +503,13 @@
               <div class="settings-left">
                 <span class="settings-icon">&#128260;</span>
                 <span class="settings-label">Reset App</span>
+              </div>
+              <div class="settings-right">&rarr;</div>
+            </div>
+            <div class="settings-item" onclick="handleLogout()" style="color:#EF4444">
+              <div class="settings-left">
+                <span class="settings-icon">&#128682;</span>
+                <span class="settings-label" style="color:#EF4444">Log Out</span>
               </div>
               <div class="settings-right">&rarr;</div>
             </div>
@@ -399,9 +534,9 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
       <span>Activity</span>
     </button>
-    <button class="nav-item" data-view="goals-screen" onclick="navigateTo('goals-screen')">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
-      <span>Goals</span>
+    <button class="nav-item" data-view="savings-target-screen" onclick="navigateTo('savings-target-screen')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12l3 3 5-5"/></svg>
+      <span>Savings</span>
     </button>
     <button class="nav-item" data-view="emi-screen" onclick="navigateTo('emi-screen')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
@@ -476,6 +611,22 @@
   </div>
   <p style="font-size:0.8125rem;color:var(--text-secondary);margin-bottom:20px">This sets a spending limit to help you track your budget throughout the month.</p>
   <button class="btn btn-primary btn-full" onclick="setBudget()">Set Budget</button>
+</div>
+
+<!-- Edit Financials Sheet -->
+<div class="bottom-sheet" id="sheet-edit-financials">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title">Monthly Salary &amp; Savings Target</div>
+  <div class="input-group">
+    <label>Monthly Income (after tax)</label>
+    <input type="text" class="input-field" id="edit-income" placeholder="&#8377;30,000" inputmode="numeric">
+  </div>
+  <div class="input-group">
+    <label>Monthly Savings Target</label>
+    <input type="text" class="input-field" id="edit-savings" placeholder="&#8377;5,000" inputmode="numeric">
+  </div>
+  <p style="font-size:0.8125rem;color:var(--text-secondary);margin-bottom:20px">Weekly budget and savings goal will auto-update based on these values.</p>
+  <button class="btn btn-primary btn-full" onclick="saveFinancials()">Save Changes</button>
 </div>
 
 <!-- Add Goal Sheet -->
