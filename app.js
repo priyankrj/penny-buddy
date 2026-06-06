@@ -374,7 +374,14 @@ let obStep = 1;
 function nextOnboardingStep() {
   if (obStep === 1) {
     const name = document.getElementById('ob-name').value.trim();
-    if (!name) { document.getElementById('ob-name').focus(); return; }
+    if (!name) { showToast('Please enter your name'); return; }
+  }
+  if (obStep === 3) {
+    const income = parseFloat(document.getElementById('ob-income').value.replace(/[^0-9.]/g, ''));
+    if (!income || income <= 0) { showToast('Please enter your monthly income'); return; }
+    const savings = parseFloat(document.getElementById('ob-savings').value.replace(/[^0-9.]/g, ''));
+    if (isNaN(savings) || savings < 0) { showToast('Please enter a valid savings target'); return; }
+    if (savings >= income) { showToast('Savings target must be less than your income'); return; }
   }
   if (obStep === 2) {
     // Currency selected — update income/savings placeholders
@@ -535,6 +542,10 @@ async function renderDashboard() {
   document.getElementById('dash-income').textContent = fmtShort(summary.income);
   document.getElementById('dash-spent').textContent = fmtShort(summary.expenses);
   document.getElementById('dash-balance-left').textContent = fmtShort(Math.max(summary.balance, 0));
+
+  // Show setup prompt if income not configured yet
+  const setupPrompt = document.getElementById('setup-prompt');
+  if (setupPrompt) setupPrompt.style.display = (!user.income || user.income <= 0) ? '' : 'none';
 
   // Weekly calculations — values come from server, no client-side math needed
   const weeklyIncome = user.weekly_income || 0;
