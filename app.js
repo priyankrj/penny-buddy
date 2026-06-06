@@ -432,7 +432,13 @@ async function completeOnboarding() {
     });
   }
 
-  user = { ...user, name, currency, income, savings_target: savings, budget: 0, categories: cats, theme: 'light', exists: true };
+  // Fetch fresh user data from server so weekly_budget/income/target are populated
+  const fresh = await api('/api/user');
+  if (fresh) {
+    user = { ...fresh, name, currency, income, savings_target: savings, budget: 0, categories: cats, theme: 'light', exists: true };
+  } else {
+    user = { ...user, name, currency, income, savings_target: savings, budget: 0, categories: cats, theme: 'light', exists: true };
+  }
 
   document.getElementById('onboarding').classList.remove('active');
   document.getElementById('app-shell').classList.add('active');
