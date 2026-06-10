@@ -6,3 +6,8 @@ pennybuddy.db
 android/
 ios/
 .sixth/
+
+check_db.py
+penny_buddy.db
+pennybuddy_backup.db
+*.db

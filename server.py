@@ -18,9 +18,67 @@ from flask import Flask, request, jsonify, send_from_directory, g, make_response
 from flask_cors import CORS
 
 app = Flask(__name__, static_folder='.', static_url_path='')
-CORS(app, origins=['*', 'capacitor://localhost', 'https://localhost', 'http://localhost:5000'])
+CORS(app, origins=['capacitor://localhost', 'https://localhost', 'http://localhost:5000',
+                   'https://pennybuddy.pythonanywhere.com'])
 
 ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'pennybuddy_admin_2026')
+
+SESSION_MAX_AGE_DAYS = 30
+MAX_AMOUNT = 100_000_000  # sanity cap on any single transaction
+
+# ===== SECURITY HEADERS =====
+
+@app.after_request
+def set_security_headers(response):
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    response.headers['Permissions-Policy'] = 'camera=(), microphone=(), geolocation=()'
+    return response
+
+# ===== RATE LIMITING (in-memory, per IP) =====
+
+_rate_buckets = {}
+
+def rate_limited(key_prefix, max_attempts=10, window_seconds=300):
+    """Returns True if this IP has exceeded max_attempts within the window."""
+    ip = request.headers.get('X-Real-IP', request.remote_addr or 'unknown')
+    key = f'{key_prefix}:{ip}'
+    now = datetime.now().timestamp()
+    attempts = [t for t in _rate_buckets.get(key, []) if now - t < window_seconds]
+    if len(attempts) >= max_attempts:
+        _rate_buckets[key] = attempts
+        return True
+    attempts.append(now)
+    _rate_buckets[key] = attempts
+    # opportunistic cleanup so the dict doesn't grow forever
+    if len(_rate_buckets) > 10000:
+        cutoff = now - window_seconds
+        for k in list(_rate_buckets):
+            _rate_buckets[k] = [t for t in _rate_buckets[k] if t > cutoff]
+            if not _rate_buckets[k]:
+                del _rate_buckets[k]
+    return False
+
+# ===== JSON ERROR HANDLERS =====
+
+@app.errorhandler(404)
+def not_found(e):
+    if request.path.startswith('/api/'):
+        return jsonify({'error': 'Endpoint not found'}), 404
+    return e
+
+@app.errorhandler(405)
+def method_not_allowed(e):
+    if request.path.startswith('/api/'):
+        return jsonify({'error': 'Method not allowed'}), 405
+    return e
+
+@app.errorhandler(500)
+def internal_error(e):
+    if request.path.startswith('/api/'):
+        return jsonify({'error': 'Something went wrong on our end. Please try again.'}), 500
+    return e
 
 DATA_DIR = os.environ.get('RENDER_DISK_PATH', os.path.dirname(os.path.abspath(__file__)))
 DB_PATH = os.path.join(DATA_DIR, 'pennybuddy.db')
@@ -186,10 +244,20 @@ def login_required(f):
         if not token:
             return jsonify({'error': 'Login required'}), 401
         conn = get_db()
-        session = conn.execute('SELECT user_id FROM sessions WHERE token = ?', (token,)).fetchone()
+        session = conn.execute('SELECT user_id, created_at FROM sessions WHERE token = ?', (token,)).fetchone()
         if not session:
             conn.close()
             return jsonify({'error': 'Invalid or expired session'}), 401
+        # Expire sessions older than SESSION_MAX_AGE_DAYS
+        try:
+            created = datetime.fromisoformat(session['created_at'])
+            if (datetime.now() - created).days > SESSION_MAX_AGE_DAYS:
+                conn.execute('DELETE FROM sessions WHERE token = ?', (token,))
+                conn.commit()
+                conn.close()
+                return jsonify({'error': 'Session expired. Please log in again.'}), 401
+        except (ValueError, TypeError):
+            pass
         g.user_id = session['user_id']
         g.db = conn
         try:
@@ -230,6 +298,8 @@ def serve_sw():
 
 @app.route('/api/auth/signup', methods=['POST'])
 def signup():
+    if rate_limited('signup', max_attempts=10, window_seconds=600):
+        return jsonify({'error': 'Too many attempts. Please wait a few minutes.'}), 429
     data = request.json
     email = (data.get('email') or '').strip().lower()
     password = data.get('password') or ''
@@ -269,6 +339,8 @@ def signup():
 
 @app.route('/api/auth/login', methods=['POST'])
 def login():
+    if rate_limited('login', max_attempts=15, window_seconds=300):
+        return jsonify({'error': 'Too many login attempts. Please wait a few minutes.'}), 429
     data = request.json or {}
     email = (data.get('email') or '').strip().lower()
     password = data.get('password') or ''
@@ -443,9 +515,18 @@ def get_transactions():
 @app.route('/api/transactions', methods=['POST'])
 @login_required
 def add_transaction():
-    data = request.json
-    amount = abs(float(data.get('amount', 0)))
+    data = request.json or {}
+    try:
+        amount = abs(float(data.get('amount', 0)))
+    except (TypeError, ValueError):
+        return jsonify({'error': 'Amount must be a number'}), 400
+    if amount <= 0:
+        return jsonify({'error': 'Amount must be greater than zero'}), 400
+    if amount > MAX_AMOUNT:
+        return jsonify({'error': 'Amount is too large'}), 400
     tx_type = data.get('type', 'expense')
+    if tx_type not in ('income', 'expense'):
+        return jsonify({'error': 'Invalid transaction type'}), 400
     if tx_type == 'expense':
         amount = -amount
 

@@ -50,7 +50,7 @@
           <button type="button" class="pw-toggle" onclick="togglePasswordVisibility('auth-password', this)">Show</button>
         </div>
       </div>
-      <button class="btn btn-primary btn-full" onclick="handleLogin()">Log In</button>
+      <button class="btn btn-primary btn-full" onclick="handleLogin(this)">Log In</button>
     </div>
 
     <div class="auth-form" id="auth-form-signup">
@@ -77,11 +77,11 @@
           <label class="pw-check" id="pw-special"><span class="pw-checkbox"></span> One special character (!@#$%&*)</label>
         </div>
       </div>
-      <button class="btn btn-primary btn-full" onclick="handleSignup()">Create Account</button>
+      <button class="btn btn-primary btn-full" onclick="handleSignup(this)">Create Account</button>
     </div>
 
     <div class="auth-divider"><span>or</span></div>
-    <button class="btn btn-full guest-btn" onclick="handleGuestLogin()">Try as Guest</button>
+    <button class="btn btn-full guest-btn" onclick="handleGuestLogin(this)">Try as Guest</button>
     <p class="guest-note">No sign-up needed. Your data won't be saved after you leave.</p>
   </div>
 </section>

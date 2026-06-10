@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PB Admin</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', system-ui, sans-serif; background: #0F172A; color: #E2E8F0; min-height: 100vh; }
+  .login-wrap { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+  .login-box { background: #1E293B; padding: 32px; border-radius: 12px; width: 100%; max-width: 360px; }
+  .login-box h2 { font-size: 1.25rem; margin-bottom: 20px; text-align: center; }
+  input, button { width: 100%; padding: 12px; border-radius: 8px; font-size: 0.875rem; font-family: inherit; }
+  input { background: #0F172A; border: 1px solid #334155; color: #E2E8F0; margin-bottom: 12px; }
+  input:focus { outline: none; border-color: #6366F1; }
+  .btn { background: #6366F1; color: white; border: none; cursor: pointer; font-weight: 600; }
+  .btn:hover { background: #4F46E5; }
+  .btn-export { background: #10B981; margin-top: 16px; }
+  .btn-export:hover { background: #059669; }
+
+  #dashboard { display: none; padding: 24px; max-width: 1000px; margin: 0 auto; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .stat-card { background: #1E293B; padding: 20px; border-radius: 10px; }
+  .stat-card .num { font-size: 1.75rem; font-weight: 800; color: #818CF8; }
+  .stat-card .label { font-size: 0.75rem; color: #94A3B8; margin-top: 4px; }
+  h1 { font-size: 1.5rem; margin-bottom: 20px; }
+  h3 { font-size: 1rem; margin: 20px 0 12px; color: #94A3B8; }
+  table { width: 100%; border-collapse: collapse; background: #1E293B; border-radius: 10px; overflow: hidden; }
+  th, td { padding: 10px 14px; text-align: left; font-size: 0.8125rem; border-bottom: 1px solid #334155; }
+  th { background: #334155; color: #94A3B8; font-weight: 600; text-transform: uppercase; font-size: 0.6875rem; letter-spacing: 0.5px; }
+  td { color: #CBD5E1; }
+  .guest { color: #F59E0B; font-size: 0.6875rem; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.6875rem; font-weight: 600; }
+  .badge-active { background: rgba(16,185,129,0.15); color: #6EE7B7; }
+  .badge-pending { background: rgba(245,158,11,0.15); color: #FCD34D; }
+  .error { color: #F87171; text-align: center; margin-top: 8px; font-size: 0.8125rem; }
+</style>
+</head>
+<body>
+
+<div class="login-wrap" id="login-wrap">
+  <div class="login-box">
+    <h2>Admin Access</h2>
+    <input type="password" id="admin-pwd" placeholder="Admin password" autocomplete="off">
+    <button class="btn" onclick="adminLogin()">Enter</button>
+    <div class="error" id="login-error"></div>
+  </div>
+</div>
+
+<div id="dashboard">
+  <h1>Penny Buddy Admin</h1>
+  <div class="stats" id="stats"></div>
+  <button class="btn btn-export" onclick="exportData()">Export All Data to CSV</button>
+  <h3>Users</h3>
+  <div style="overflow-x:auto">
+    <table id="users-table"><thead><tr></tr></thead><tbody></tbody></table>
+  </div>
+</div>
+
+<script>
+let adminKey = '';
+
+async function adminLogin() {
+  adminKey = document.getElementById('admin-pwd').value;
+  const res = await fetch('/api/admin/overview', { headers: { 'X-Admin-Key': adminKey } });
+  if (!res.ok) {
+    document.getElementById('login-error').textContent = 'Wrong password';
+    return;
+  }
+  document.getElementById('login-wrap').style.display = 'none';
+  document.getElementById('dashboard').style.display = 'block';
+  const data = await res.json();
+  renderDashboard(data);
+}
+
+document.getElementById('admin-pwd').addEventListener('keydown', e => { if (e.key === 'Enter') adminLogin(); });
+
+function renderDashboard(data) {
+  const s = data.stats;
+  document.getElementById('stats').innerHTML = [
+    { num: s.total_users, label: 'Total Users' },
+    { num: s.active_users, label: 'Active Users' },
+    { num: s.total_transactions, label: 'Transactions' },
+    { num: s.total_goals, label: 'Goals' }
+  ].map(c => `<div class="stat-card"><div class="num">${c.num}</div><div class="label">${c.label}</div></div>`).join('');
+
+  const thead = document.querySelector('#users-table thead tr');
+  thead.innerHTML = ['Name','Email','Currency','Income','Savings Target','Transactions','Goals','Status','Joined'].map(h => `<th>${h}</th>`).join('');
+
+  const tbody = document.querySelector('#users-table tbody');
+  tbody.innerHTML = data.users.map(u => {
+    const isGuest = u.email.endsWith('@pennybuddy.guest');
+    const status = u.onboarding_done
+      ? '<span class="badge badge-active">Active</span>'
+      : '<span class="badge badge-pending">Pending</span>';
+    const joined = u.created_at ? u.created_at.split(' ')[0] : '-';
+    return `<tr>
+      <td>${u.name}${isGuest ? ' <span class="guest">(guest)</span>' : ''}</td>
+      <td>${isGuest ? '-' : u.email}</td>
+      <td>${u.currency}</td>
+      <td>${u.income.toLocaleString()}</td>
+      <td>${u.savings_target.toLocaleString()}</td>
+      <td>${u.tx_count}</td>
+      <td>${u.goal_count}</td>
+      <td>${status}</td>
+      <td>${joined}</td>
+    </tr>`;
+  }).join('');
+}
+
+function exportData() {
+  const a = document.createElement('a');
+  a.href = '/api/admin/export';
+  a.download = 'pennybuddy_export.csv';
+  const xhr = new XMLHttpRequest();
+  xhr.open('GET', '/api/admin/export');
+  xhr.setRequestHeader('X-Admin-Key', adminKey);
+  xhr.responseType = 'blob';
+  xhr.onload = function() {
+    if (xhr.status === 200) {
+      const url = URL.createObjectURL(xhr.response);
+      a.href = url;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+  };
+  xhr.send();
+}
+</script>
+</body>
+</html>

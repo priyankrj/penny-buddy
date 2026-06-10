@@ -127,7 +127,8 @@ function fmtShort(n) {
 }
 
 // ===== TOAST NOTIFICATIONS =====
-function showToast(message) {
+// type: 'info' (default) | 'success' | 'error'
+function showToast(message, type = 'info') {
   let toast = document.getElementById('app-toast');
   if (toast) {
     clearTimeout(toast._timer);
@@ -136,19 +137,43 @@ function showToast(message) {
     toast.id = 'app-toast';
     Object.assign(toast.style, {
       position: 'fixed', bottom: '90px', left: '50%', transform: 'translateX(-50%)',
-      background: 'var(--text)', color: 'var(--bg)', padding: '12px 24px',
+      padding: '12px 24px', display: 'flex', alignItems: 'center', gap: '8px',
       borderRadius: 'var(--radius-lg)', fontSize: '0.875rem', fontFamily: 'var(--font)',
       fontWeight: '500', zIndex: '9998', opacity: '0', transition: 'opacity 0.3s',
       maxWidth: '90vw', textAlign: 'center', boxShadow: 'var(--shadow-lg)'
     });
     document.body.appendChild(toast);
   }
-  toast.textContent = message;
+  const styles = {
+    info:    { background: 'var(--text)', color: 'var(--bg)', icon: '' },
+    success: { background: '#059669', color: '#fff', icon: '✓ ' },
+    error:   { background: '#DC2626', color: '#fff', icon: '✕ ' }
+  };
+  const s = styles[type] || styles.info;
+  toast.style.background = s.background;
+  toast.style.color = s.color;
+  toast.textContent = s.icon + message;
   requestAnimationFrame(() => { toast.style.opacity = '1'; });
   toast._timer = setTimeout(() => {
     toast.style.opacity = '0';
     setTimeout(() => toast.remove(), 300);
   }, 3000);
+}
+
+// Disables a button and shows progress text while an async action runs
+async function withButtonLoading(btn, loadingText, fn) {
+  if (!btn || btn.disabled) { if (!btn) await fn(); return; }
+  const original = btn.textContent;
+  btn.disabled = true;
+  btn.style.opacity = '0.7';
+  btn.textContent = loadingText;
+  try {
+    await fn();
+  } finally {
+    btn.disabled = false;
+    btn.style.opacity = '';
+    btn.textContent = original;
+  }
 }
 
 // ===== API HELPERS =====
@@ -189,29 +214,31 @@ function showAuthScreen() {
   document.getElementById('auth-screen').classList.add('active');
 }
 
-async function handleLogin() {
+async function handleLogin(btn) {
   const email = document.getElementById('auth-email').value.trim();
   const password = document.getElementById('auth-password').value;
-  if (!email || !password) { showToast('Please fill in all fields'); return; }
+  if (!email || !password) { showToast('Please fill in all fields', 'error'); return; }
 
-  const res = await fetch(API + '/api/auth/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password })
-  }).catch(() => null);
-  if (!res) { showToast('Cannot reach server — is it running?'); return; }
-  const data = await res.json();
-  if (res.status === 503) { showToast('Cannot reach server — is it running?'); return; }
-  if (!res.ok) { showToast(data.error || 'Login failed'); return; }
+  await withButtonLoading(btn, 'Logging in…', async () => {
+    const res = await fetch(API + '/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    }).catch(() => null);
+    if (!res) { showToast('Cannot reach server — is it running?', 'error'); return; }
+    const data = await res.json();
+    if (res.status === 503) { showToast('Cannot reach server — is it running?', 'error'); return; }
+    if (!res.ok) { showToast(data.error || 'Login failed', 'error'); return; }
 
-  authToken = data.token;
-  localStorage.setItem('pb_token', authToken);
-  document.getElementById('auth-screen').classList.remove('active');
-  if (data.onboarding_done) {
-    await initAfterAuth();
-  } else {
-    document.getElementById('onboarding').classList.add('active');
-  }
+    authToken = data.token;
+    localStorage.setItem('pb_token', authToken);
+    document.getElementById('auth-screen').classList.remove('active');
+    if (data.onboarding_done) {
+      await initAfterAuth();
+    } else {
+      document.getElementById('onboarding').classList.add('active');
+    }
+  });
 }
 
 function validatePassword(pw) {
@@ -227,47 +254,52 @@ function validateEmail(email) {
   return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(email);
 }
 
-async function handleSignup() {
+async function handleSignup(btn) {
   const name = document.getElementById('auth-signup-name').value.trim();
   const email = document.getElementById('auth-signup-email').value.trim().toLowerCase();
   const password = document.getElementById('auth-signup-password').value;
-  if (!name || !email || !password) { showToast('Please fill in all fields'); return; }
-  if (name.length < 2) { showToast('Name must be at least 2 characters'); return; }
-  if (!validateEmail(email)) { showToast('Enter a valid email (e.g. you@gmail.com)'); return; }
+  if (!name || !email || !password) { showToast('Please fill in all fields', 'error'); return; }
+  if (name.length < 2) { showToast('Name must be at least 2 characters', 'error'); return; }
+  if (!validateEmail(email)) { showToast('Enter a valid email (e.g. you@gmail.com)', 'error'); return; }
   const pwError = validatePassword(password);
-  if (pwError) { showToast(pwError); return; }
+  if (pwError) { showToast(pwError, 'error'); return; }
 
-  const res = await fetch(API + '/api/auth/signup', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, email, password })
-  }).catch(() => null);
-  if (!res) { showToast('Cannot reach server — is it running?'); return; }
-  const data = await res.json();
-  if (res.status === 503) { showToast('Cannot reach server — is it running?'); return; }
-  if (!res.ok) { showToast(data.error || 'Signup failed'); return; }
+  await withButtonLoading(btn, 'Creating account…', async () => {
+    const res = await fetch(API + '/api/auth/signup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, password })
+    }).catch(() => null);
+    if (!res) { showToast('Cannot reach server — is it running?', 'error'); return; }
+    const data = await res.json();
+    if (res.status === 503) { showToast('Cannot reach server — is it running?', 'error'); return; }
+    if (!res.ok) { showToast(data.error || 'Signup failed', 'error'); return; }
 
-  authToken = data.token;
-  localStorage.setItem('pb_token', authToken);
-  document.getElementById('auth-screen').classList.remove('active');
-  document.getElementById('onboarding').classList.add('active');
-  document.getElementById('ob-name').value = name;
+    authToken = data.token;
+    localStorage.setItem('pb_token', authToken);
+    showToast('Account created! Welcome aboard', 'success');
+    document.getElementById('auth-screen').classList.remove('active');
+    document.getElementById('onboarding').classList.add('active');
+    document.getElementById('ob-name').value = name;
+  });
 }
 
-async function handleGuestLogin() {
-  const res = await fetch(API + '/api/auth/guest', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' }
-  }).catch(() => null);
-  if (!res) { showToast('Cannot reach server — is it running?'); return; }
-  const data = await res.json();
-  if (res.status === 503) { showToast('Cannot reach server — is it running?'); return; }
-  if (!res.ok) { showToast(data.error || 'Guest login failed'); return; }
+async function handleGuestLogin(btn) {
+  await withButtonLoading(btn, 'Setting up…', async () => {
+    const res = await fetch(API + '/api/auth/guest', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    }).catch(() => null);
+    if (!res) { showToast('Cannot reach server — is it running?', 'error'); return; }
+    const data = await res.json();
+    if (res.status === 503) { showToast('Cannot reach server — is it running?', 'error'); return; }
+    if (!res.ok) { showToast(data.error || 'Guest login failed', 'error'); return; }
 
-  authToken = data.token;
-  localStorage.setItem('pb_token', authToken);
-  document.getElementById('auth-screen').classList.remove('active');
-  document.getElementById('onboarding').classList.add('active');
+    authToken = data.token;
+    localStorage.setItem('pb_token', authToken);
+    document.getElementById('auth-screen').classList.remove('active');
+    document.getElementById('onboarding').classList.add('active');
+  });
 }
 
 function togglePasswordVisibility(inputId, btn) {
